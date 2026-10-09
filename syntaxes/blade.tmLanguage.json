@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "blade.php.injection",
+  "injectionSelector": "L:text.html.php.blade",
+  "patterns": [
+    {
+      "name": "meta.embedded.block.php",
+      "begin": "<\\?php",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.embedded.begin.php" }
+      },
+      "end": "\\?>",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.embedded.end.php" }
+      },
+      "patterns": [
+        { "include": "source.php" }
+      ]
+    },
+    {
+      "name": "meta.embedded.blade.php",
+      "begin": "(?i)(@php)\\b",
+      "beginCaptures": {
+        "1": { "name": "keyword.blade" }
+      },
+      "end": "(?i)(@endphp)\\b",
+      "endCaptures": {
+        "1": { "name": "keyword.blade" }
+      },
+      "patterns": [
+        { "include": "source.php" }
+      ]
+    }
+  ]
+}

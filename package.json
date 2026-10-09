@@ -1,0 +1,77 @@
+{
+  "name": "php-blade-livewire-formatter",
+  "displayName": "blade-formatter",
+  "publisher": "idev",
+  "description": "All-in-one PHP and Blade formatter featuring PSR-12 compliance, Tailwind integration, and smart Livewire 4 autocompletion.",
+  "keywords": [
+    "php",
+    "blade",
+    "livewire4",
+    "formatter",
+    "psr-12",
+    "laravel"
+  ],
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.140.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:blade",
+    "onLanguage:php"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "blade",
+        "aliases": [
+          "Blade",
+          "blade"
+        ],
+        "extensions": [
+          ".blade.php"
+        ]
+      }
+    ],
+    "grammars": [
+      {
+        "scopeName": "blade.php.injection",
+        "path": "./syntaxes/blade.tmLanguage.json",
+        "injectTo": [
+          "text.html.php.blade"
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "@types/vscode": "^1.140.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  },
+  "dependencies": {
+    "@prettier/plugin-php": "^0.25.0",
+    "prettier": "^3.9.9",
+    "prettier-plugin-blade": "^3.3.3",
+    "prettier-plugin-tailwindcss": "^0.8.1"
+  }
+}
