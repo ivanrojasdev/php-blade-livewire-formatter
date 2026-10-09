@@ -139,6 +139,10 @@ export function activate(context: vscode.ExtensionContext) {
           });
         }
 
+        // Asegurar una línea en blanco después de los use (soporta clases estándar, anónimas y atributos)
+        formattedText = formattedText.replace(/(use\s+[^;]+;)(?:\r?\n)+(?!\r?\n)(?=\s*(?:#[^\]]+\]\s*)?(?:class|abstract\s+class|interface|trait|enum|new\b))/g, '$1\n\n');
+
+        // Asegurar línea en blanco entre clases y clases anónimas
         formattedText = formattedText.replace(/(?:}|};\s*)(\s*\n)+\s*(?=\b(?:class|abstract\s+class|interface|trait)\s+)/g, (match) => {
           return match.startsWith('};') ? '};\n\n' : '}\n\n';
         });
