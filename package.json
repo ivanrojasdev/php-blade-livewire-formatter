@@ -2,6 +2,10 @@
   "name": "php-blade-livewire-formatter",
   "displayName": "PHP, Blade & Livewire Formatter",
   "publisher": "irodev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ivanrojasdev/php-blade-livewire-formatter.git"
+  },
   "icon": "icon.png",
   "description": "All-in-one PHP and Blade formatter featuring PSR-12 compliance, Tailwind integration, and smart Livewire 4 autocompletion.",
   "categories": [
@@ -16,7 +20,7 @@
     "psr-12",
     "laravel"
   ],
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.140.0"
   },
