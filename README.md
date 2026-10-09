@@ -53,6 +53,7 @@ Add the following to your `settings.json` to enable automatic formatting on save
     "editor.formatOnSave": true
   }
 }
+```
 
 ## Issues & Feedback
 
