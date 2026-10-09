@@ -1,8 +1,13 @@
 {
   "name": "php-blade-livewire-formatter",
-  "displayName": "blade-formatter",
-  "publisher": "idev",
+  "displayName": "PHP, Blade & Livewire Formatter",
+  "publisher": "irodev",
+  "icon": "icon.png",
   "description": "All-in-one PHP and Blade formatter featuring PSR-12 compliance, Tailwind integration, and smart Livewire 4 autocompletion.",
+  "categories": [
+    "Formatters",
+    "Snippets"
+  ],
   "keywords": [
     "php",
     "blade",
@@ -15,9 +20,6 @@
   "engines": {
     "vscode": "^1.140.0"
   },
-  "categories": [
-    "Other"
-  ],
   "activationEvents": [
     "onLanguage:blade",
     "onLanguage:php"
