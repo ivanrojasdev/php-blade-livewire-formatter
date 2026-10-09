@@ -1,11 +1,87 @@
 import * as vscode from 'vscode';
-import { exec } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
 import * as prettier from 'prettier';
 
-export function activate(context: vscode.ExtensionContext) {
+function processImports(code: string): string {
+  const lines = code.split('\n');
+  const useRegex = /^use\s+([\w\\]+)(?:\s+as\s+(\w+))?;\r?$/;
 
+  const imports: { lineIndex: number; fullPath: string; className: string }[] = [];
+
+  lines.forEach((line, index) => {
+    const match = line.trim().match(useRegex);
+    if (match) {
+      const fullPath = match[1];
+      const alias = match[2];
+      const className = alias || fullPath.split('\\').pop() || '';
+      imports.push({ lineIndex: index, fullPath, className });
+    }
+  });
+
+  if (imports.length === 0) return code;
+
+  const codeWithoutImports = lines
+    .filter((_, idx) => !imports.some(imp => imp.lineIndex === idx))
+    .join('\n');
+
+  const unusedIndices = new Set<number>();
+
+  imports.forEach(imp => {
+    const usageRegex = new RegExp(`\\b${imp.className}\\b`);
+    if (!usageRegex.test(codeWithoutImports)) {
+      unusedIndices.add(imp.lineIndex);
+    }
+  });
+
+  const activeImports = imports
+    .filter(imp => !unusedIndices.has(imp.lineIndex))
+    .sort((a, b) => a.fullPath.localeCompare(b.fullPath));
+
+  let importInsertIndex = imports[0].lineIndex;
+  const finalLines: string[] = [];
+  let importsInserted = false;
+
+  lines.forEach((line, idx) => {
+    if (unusedIndices.has(idx) || imports.some(imp => imp.lineIndex === idx)) {
+      if (idx === importInsertIndex && !importsInserted) {
+        activeImports.forEach(imp => {
+          finalLines.push(`use ${imp.fullPath};`);
+        });
+        importsInserted = true;
+      }
+    } else {
+      finalLines.push(line);
+    }
+  });
+
+  return finalLines.join('\n');
+}
+
+function enforcePhpFourSpacesInBlade(code: string): string {
+  const phpBlockRegex = /(<\?php[\s\S]*?\?>|@php[\s\S]*?@endphp)/gi;
+
+  return code.replace(phpBlockRegex, (match) => {
+    const lines = match.split('\n');
+
+    const indentedLines = lines.map((line, index) => {
+      if (index === 0 || index === lines.length - 1) {
+        return line;
+      }
+
+      const leadingSpaces = line.match(/^(\s*)/)?.[1] || '';
+      if (leadingSpaces.length > 0) {
+        const level = Math.ceil(leadingSpaces.length / 2);
+        const newIndent = ' '.repeat(level * 4);
+        return newIndent + line.trimStart();
+      }
+
+      return line;
+    });
+
+    return indentedLines.join('\n');
+  });
+}
+
+export function activate(context: vscode.ExtensionContext) {
   const supportedLanguages = ['blade', 'php'];
 
   const formatterProvider = vscode.languages.registerDocumentFormattingEditProvider(supportedLanguages, {
@@ -17,29 +93,57 @@ export function activate(context: vscode.ExtensionContext) {
       );
 
       try {
-        if (document.languageId === 'php') {
-          const finalPhpText = await runPhpCsFixer(fullText);
-          return [vscode.TextEdit.replace(fullRange, finalPhpText)];
+        const textWithoutUnusedImports = processImports(fullText);
+
+        const isBlade = document.languageId === 'blade';
+        let formattedText = '';
+
+        if (isBlade) {
+          const formattedByBlade = await prettier.format(textWithoutUnusedImports, {
+            parser: 'blade',
+            plugins: [
+              require.resolve('prettier-plugin-blade'),
+              require.resolve('@prettier/plugin-php'),
+              require.resolve('prettier-plugin-tailwindcss')
+            ],
+            tabWidth: 2,
+            useTabs: false,
+            // @ts-ignore
+            phpVersion: '8.2',
+            // @ts-ignore
+            trailingCommaPHP: false,
+            // @ts-ignore
+            braceStyle: 'psr-2',
+            // @ts-ignore
+            bladeTabSize: 2,
+            // @ts-ignore
+            bladeFormatFormatter: 'prettier',
+          });
+          formattedText = enforcePhpFourSpacesInBlade(formattedByBlade);
+          formattedText = formattedText.replace(/\n\s*\?>/g, '\n?>');
+          formattedText = formattedText.replace(/(\?>)\s*\n+(?=\s*<)/g, '$1\n\n');
+        } else {
+          formattedText = await prettier.format(textWithoutUnusedImports, {
+            parser: 'php',
+            plugins: [
+              require.resolve('@prettier/plugin-php')
+            ],
+            tabWidth: 4,
+            useTabs: false,
+            // @ts-ignore
+            phpVersion: '8.2',
+            // @ts-ignore
+            trailingCommaPHP: false,
+            // @ts-ignore
+            braceStyle: 'psr-2',
+          });
         }
 
-        const formattedByPrettier = await prettier.format(fullText, {
-          parser: 'blade',
-          plugins: [
-            require.resolve('prettier-plugin-blade'),
-            require.resolve('@prettier/plugin-php'),
-            require.resolve('prettier-plugin-tailwindcss')
-          ],
-          tabWidth: 2,
-          useTabs: false,
-          // @ts-ignore
-          bladeTabSize: 2,
-          // @ts-ignore
-          bladeFormatFormatter: 'prettier',
+        formattedText = formattedText.replace(/(?:}|};\s*)(\s*\n)+\s*(?=\b(?:class|abstract\s+class|interface|trait)\s+)/g, (match) => {
+          return match.startsWith('};') ? '};\n\n' : '}\n\n';
         });
 
-        let finalFormattedText = await runPhpCsFixer(formattedByPrettier);
-        finalFormattedText = finalFormattedText.replace(/(\?>)\s*\n(?=\s*<)/g, '$1\n\n');
-        return [vscode.TextEdit.replace(fullRange, finalFormattedText)];
+        return [vscode.TextEdit.replace(fullRange, formattedText)];
       } catch (error) {
         vscode.window.showErrorMessage(`Error formatting: ${error}`);
         return [];
@@ -52,7 +156,6 @@ export function activate(context: vscode.ExtensionContext) {
     {
       provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
         const linePrefix = document.lineAt(position).text.substring(0, position.character);
-
         const isWireAttribute = /(wire:[a-z.-]+|x-on:[a-z.-]+|wire:model[a-z.-]*)="[^"]*$/i.test(linePrefix);
 
         if (!isWireAttribute) {
@@ -95,72 +198,8 @@ export function activate(context: vscode.ExtensionContext) {
     },
     '"', "'", ':', '-'
   );
+
   context.subscriptions.push(formatterProvider, completionProvider);
-}
-
-function runPhpCsFixer(text: string): Promise<string> {
-  return new Promise((resolve) => {
-    const tempDir = fs.mkdtempSync(path.join(process.env.TEMP || '/tmp', 'blade-'));
-    const tempFile = path.join(tempDir, 'temp.php');
-
-    fs.writeFileSync(tempFile, text, 'utf-8');
-
-    const myRules = {
-      "@PSR12": true,
-      "class_attributes_separation": {
-        "elements": {
-          "method": "one",
-          "property": "one",
-          "trait_import": "none"
-        }
-      },
-      "cast_spaces": true,
-      "concat_space": {
-        "spacing": "one"
-      },
-      "array_indentation": true,
-      "trim_array_spaces": true,
-      "no_whitespace_before_comma_in_array": true,
-      "whitespace_after_comma_in_array": {
-        "ensure_single_space": true
-      },
-      "no_spaces_around_offset": true,
-      "array_syntax": {
-        "syntax": "short"
-      },
-      "binary_operator_spaces": {
-        "default": "align_single_space_minimal"
-      },
-      "no_unused_imports": true,
-      "ordered_imports": true,
-      "no_extra_blank_lines": {
-        "tokens": [
-          "curly_brace_block",
-          "extra",
-          "return",
-          "square_brace_block"
-        ]
-      },
-      "new_with_braces": {
-        "anonymous_class": false,
-        "named_class": false
-      }
-    };
-
-    const rulesJson = JSON.stringify(myRules).replace(/"/g, '\\"');
-    const command = `php-cs-fixer fix "${tempFile}" --rules="${rulesJson}"`;
-
-    exec(command, () => {
-      let result = text;
-      if (fs.existsSync(tempFile)) {
-        result = fs.readFileSync(tempFile, 'utf-8');
-        result = result.replace(/(\}(?:;\s*)?)\n+(?=\s*class\s+)/g, '$1\n\n');
-        result = result.replace(/\n+\s*\?>/g, '\n?>');
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      }
-      resolve(result);
-    });
-  });
 }
 
 export function deactivate() { }
