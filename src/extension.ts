@@ -56,11 +56,17 @@ function processImports(code: string): string {
   return finalLines.join('\n');
 }
 
+/**
+ * Ajusta la indentación interna y mueve la llave de apertura { de clases anónimas a la línea siguiente.
+ */
 function enforcePhpFourSpacesInBlade(code: string): string {
   const phpBlockRegex = /(<\?php[\s\S]*?\?>|@php[\s\S]*?@endphp)/gi;
 
   return code.replace(phpBlockRegex, (match) => {
-    const lines = match.split('\n');
+    // Mover la llave de apertura de clases anónimas (new class ... {) a la línea de abajo
+    let processedMatch = match.replace(/(\bnew\s+class\b[^\{]*?)\s*\{/g, '$1\n{');
+
+    const lines = processedMatch.split('\n');
 
     const indentedLines = lines.map((line, index) => {
       if (index === 0 || index === lines.length - 1) {
@@ -86,6 +92,18 @@ export function activate(context: vscode.ExtensionContext) {
 
   const formatterProvider = vscode.languages.registerDocumentFormattingEditProvider(supportedLanguages, {
     async provideDocumentFormattingEdits(document: vscode.TextDocument): Promise<vscode.TextEdit[]> {
+      // VERIFICACIÓN DE ERRORES: Si hay errores de sintaxis activos en el archivo, no formatear para evitar corrimientos
+      const diagnostics = vscode.languages.getDiagnostics(document.uri);
+      const hasSyntaxErrors = diagnostics.some(d =>
+        d.severity === vscode.DiagnosticSeverity.Error &&
+        (d.source === 'php' || d.source === 'Blade' || d.message.toLowerCase().includes('syntax error'))
+      );
+
+      if (hasSyntaxErrors) {
+        // Opcional: mostrar un aviso sutil o simplemente retornar sin hacer cambios
+        return [];
+      }
+
       const fullText = document.getText();
       const fullRange = new vscode.Range(
         document.positionAt(0),
@@ -137,9 +155,12 @@ export function activate(context: vscode.ExtensionContext) {
             // @ts-ignore
             braceStyle: 'psr-2',
           });
+
+          // También asegurar que en archivos .php puros la llave baje si hubiera una clase anónima
+          formattedText = formattedText.replace(/(\bnew\s+class\b[^\{]*?)\s*\{/g, '$1\n{');
         }
 
-        // Asegurar una línea en blanco después de los use (soporta clases estándar, anónimas y atributos)
+        // Asegurar una línea en blanco después de los use
         formattedText = formattedText.replace(/(use\s+[^;]+;)(?:\r?\n)+(?!\r?\n)(?=\s*(?:#[^\]]+\]\s*)?(?:class|abstract\s+class|interface|trait|enum|new\b))/g, '$1\n\n');
 
         // Asegurar línea en blanco entre clases y clases anónimas
