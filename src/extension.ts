@@ -167,8 +167,11 @@ export function activate(context: vscode.ExtensionContext) {
           return match.startsWith('};') ? '};\n\n' : '}\n\n';
         });
 
-        // Limpiar espacios en blanco vacíos dentro de atributos HTML/Blade (ej: wire:model="   " -> wire:model="")
-        formattedText = formattedText.replace(/([a-zA-Z0-9_:-]+)="[\s\n]+"/g, '$1=""');
+        // Limpiar espacios en blanco al inicio y al final dentro de las comillas de cualquier atributo/directiva
+        formattedText = formattedText.replace(/([a-zA-Z0-9_:-]+)="([^"]*?)"/g, (match, attr, content) => {
+          const trimmedContent = content.trim();
+          return `${attr}="${trimmedContent}"`;
+        });
 
         return [vscode.TextEdit.replace(fullRange, formattedText)];
       } catch (error) {

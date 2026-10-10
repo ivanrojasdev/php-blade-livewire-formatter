@@ -20,7 +20,7 @@
     "psr-12",
     "laravel"
   ],
-  "version": "0.0.6",
+  "version": "0.0.7",
   "engines": {
     "vscode": "^1.140.0"
   },
