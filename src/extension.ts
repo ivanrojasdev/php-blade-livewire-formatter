@@ -100,7 +100,6 @@ export function activate(context: vscode.ExtensionContext) {
       );
 
       if (hasSyntaxErrors) {
-        // Opcional: mostrar un aviso sutil o simplemente retornar sin hacer cambios
         return [];
       }
 
@@ -168,6 +167,9 @@ export function activate(context: vscode.ExtensionContext) {
           return match.startsWith('};') ? '};\n\n' : '}\n\n';
         });
 
+        // Limpiar espacios en blanco vacíos dentro de atributos HTML/Blade (ej: wire:model="   " -> wire:model="")
+        formattedText = formattedText.replace(/([a-zA-Z0-9_:-]+)="[\s\n]+"/g, '$1=""');
+
         return [vscode.TextEdit.replace(fullRange, formattedText)];
       } catch (error) {
         vscode.window.showErrorMessage(`Error formatting: ${error}`);
@@ -181,11 +183,23 @@ export function activate(context: vscode.ExtensionContext) {
     {
       provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
         const linePrefix = document.lineAt(position).text.substring(0, position.character);
+        
+        // Verificamos si estamos escribiendo dentro de una directiva wire: o x-on:
         const isWireAttribute = /(wire:[a-z.-]+|x-on:[a-z.-]+|wire:model[a-z.-]*)="[^"]*$/i.test(linePrefix);
 
         if (!isWireAttribute) {
           return undefined;
         }
+
+        // Comprobamos si es un evento click (wire:click o x-on:click)
+        const clickRegexes = [
+          /wire:click(\.[a-z]+)*="[^"]*$/i,
+          /x-on:click(\.[a-z]+)*="[^"]*$/i
+        ];
+        const isClickAction = clickRegexes.some(regex => regex.test(linePrefix));
+
+        // Comprobamos si es un modelo (wire:model con cualquier modificador como .live, .blur, etc.)
+        const isModelAction = /wire:model(\.[a-z]+)*="[^"]*$/i.test(linePrefix);
 
         const text = document.getText();
         const items: vscode.CompletionItem[] = [];
@@ -195,27 +209,36 @@ export function activate(context: vscode.ExtensionContext) {
         if (classMatch && classMatch[1]) {
           const classBody = classMatch[1];
 
-          const methodRegex = /public\s+function\s+([a-zA-Z0-9_]+)\s*\(/g;
-          let match;
-          let index = 0;
-          while ((match = methodRegex.exec(classBody)) !== null) {
-            const methodName = match[1];
-            const item = new vscode.CompletionItem(methodName, vscode.CompletionItemKind.Method);
-            item.detail = `Livewire Method`;
-            item.insertText = methodName;
-            item.sortText = `0_${index++}`;
-            item.preselect = true;
-            items.push(item);
+          // Los métodos SOLO se muestran si NO estamos en una directiva de modelo (wire:model)
+          if (!isModelAction) {
+            const methodRegex = /public\s+function\s+([a-zA-Z0-9_]+)\s*\(/g;
+            let match;
+            let index = 0;
+            while ((match = methodRegex.exec(classBody)) !== null) {
+              const methodName = match[1];
+              const item = new vscode.CompletionItem(methodName, vscode.CompletionItemKind.Method);
+              item.detail = `Livewire Method`;
+              item.insertText = methodName;
+              item.sortText = `0_${index++}`;
+              item.preselect = !isClickAction;
+              items.push(item);
+            }
           }
 
-          const propertyRegex = /public\s+(?:[\w\\|]+\s+)?\$([a-zA-Z0-9_]+)/g;
-          while ((match = propertyRegex.exec(classBody)) !== null) {
-            const propName = match[1];
-            const item = new vscode.CompletionItem(propName, vscode.CompletionItemKind.Property);
-            item.detail = `Livewire Property`;
-            item.insertText = propName;
-            item.sortText = `0_${index++}`;
-            items.push(item);
+          // Las propiedades SOLO se muestran si NO estamos en una directiva de tipo click (ej. wire:click)
+          if (!isClickAction) {
+            const propertyRegex = /public\s+(?:[\w\\|]+\s+)?\$([a-zA-Z0-9_]+)/g;
+            let match;
+            let index = 0;
+            while ((match = propertyRegex.exec(classBody)) !== null) {
+              const propName = match[1];
+              const item = new vscode.CompletionItem(propName, vscode.CompletionItemKind.Property);
+              item.detail = `Livewire Property`;
+              item.insertText = propName;
+              item.sortText = `1_${index++}`;
+              item.preselect = isModelAction;
+              items.push(item);
+            }
           }
         }
         return items;
