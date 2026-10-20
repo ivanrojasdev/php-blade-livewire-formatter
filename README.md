@@ -15,11 +15,11 @@ Add the following to your `settings.json` to enable automatic formatting on save
 {
   "editor.wordBasedSuggestions": "off",
   "[blade]": {
-    "editor.defaultFormatter": "irodev.php-blade-livewire-formatter",
+    "editor.defaultFormatter": "ivanrojasdev.php-laravel-blade-livewire-formatter",
     "editor.formatOnSave": true
   },
   "[php]": {
-    "editor.defaultFormatter": "irodev.php-blade-livewire-formatter",
+    "editor.defaultFormatter": "ivanrojasdev.php-laravel-blade-livewire-formatter",
     "editor.formatOnSave": true
   }
 }
