@@ -1,7 +1,7 @@
 {
   "name": "php-blade-livewire-formatter",
   "displayName": "PHP, Blade & Livewire Formatter",
-  "publisher": "idev",
+  "publisher": "ivanrojasdev",
   "repository": {
     "type": "git",
     "url": "https://github.com/ivanrojasdev/php-blade-livewire-formatter.git"
