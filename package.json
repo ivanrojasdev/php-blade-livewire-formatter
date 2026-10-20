@@ -1,7 +1,7 @@
 {
   "name": "php-blade-livewire-formatter",
   "displayName": "PHP, Blade & Livewire Formatter",
-  "publisher": "irodev",
+  "publisher": "idev",
   "repository": {
     "type": "git",
     "url": "https://github.com/ivanrojasdev/php-blade-livewire-formatter.git"
@@ -20,7 +20,7 @@
     "psr-12",
     "laravel"
   ],
-  "version": "0.0.7",
+  "version": "1.0.0",
   "engines": {
     "vscode": "^1.140.0"
   },
